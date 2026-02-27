@@ -28,6 +28,20 @@ const leadSchema = new mongoose.Schema<ILead>({
         ref: "User",
         required: true
     },
+    pipelineId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Pipeline",
+        required: true
+    },
+    stageId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "PipelineStage",
+    },
+    status: {
+        type: String,
+        enum: ["new", "contacted", "converted", "lost"],
+        default: "new"
+    }
 }, {
     timestamps: true,
 });

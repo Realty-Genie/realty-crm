@@ -1,6 +1,7 @@
 import { Lead } from "./lead.model";
 import type { ILeadCreate, IleadOverView, ILeadUpdate } from "./lead.types";
 import { Membership } from "../memberships/memberships.model";
+import { ensureDefaultPipelines } from "../pipeline/pipeline.seed";
 
 
 export class LeadService {
@@ -14,6 +15,20 @@ export class LeadService {
         if (!checkWorkspace) {
             throw new Error("You are not a member of this workspace");
         }
+
+        // Auto-assign pipeline and stage if not provided
+        if (!leadData.pipelineId) {
+            const defaults = await ensureDefaultPipelines(
+                leadData.workspaceId as string,
+                leadData.realtorId as string
+            );
+            const pipelineType = leadData.type === "SELLER" ? "seller" : "buyer";
+            leadData.pipelineId = defaults[pipelineType].pipelineId;
+            if (!leadData.stageId) {
+                leadData.stageId = defaults[pipelineType].firstStageId;
+            }
+        }
+
         const lead = new Lead(leadData);
         return await lead.save();
     }
@@ -56,7 +71,7 @@ export class LeadService {
         return await Lead.findOneAndDelete({ realtorId, _id: leadId });
     }
 
-    static async addLeads(leads: ILeadCreate[], realtorId: string, workspaceId: string) {
+    static async addLeads(leads: ILeadCreate[], realtorId: string, workspaceId: string, pipelineId?: string) {
         const checkWorkspace = await Membership.findOne({
             workspace: workspaceId,
             user: realtorId,
@@ -65,10 +80,22 @@ export class LeadService {
         if (!checkWorkspace) {
             throw new Error("You are not a member of this workspace");
         }
+
+        // Auto-assign pipeline if not provided
+        let defaultPipelineId = pipelineId;
+        let defaultStageId: string | undefined;
+        if (!defaultPipelineId) {
+            const defaults = await ensureDefaultPipelines(workspaceId, realtorId);
+            defaultPipelineId = defaults.buyer.pipelineId?.toString();
+            defaultStageId = defaults.buyer.firstStageId?.toString();
+        }
+
         const newLeads: ILeadCreate[] = leads.map((lead) => ({
             ...lead,
             realtorId: realtorId,
             workspaceId: workspaceId,
+            pipelineId: lead.pipelineId || defaultPipelineId,
+            stageId: lead.stageId || defaultStageId,
         }));
         const insertedLeads = await Lead.insertMany(newLeads);
         return insertedLeads;
