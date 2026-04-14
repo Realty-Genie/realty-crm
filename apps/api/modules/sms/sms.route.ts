@@ -27,6 +27,8 @@ import {
     getLeadMessages,
     getSmsStatus,
     toggleSmsCampaignStatus,
+    smsScheduler,
+    smsDispatchWorker,
 } from "./sms.controller";
 import requirePro from "../../shared/middleware/requirePro";
 
@@ -40,6 +42,8 @@ router.get("/health", (_req, res) => {
 // ── Worker Endpoint ───────────────────────────────────────────────────
 // This is protected via internal secret validation in the controller
 router.post("/worker/send", smsWorker);
+router.post("/scheduler", smsScheduler);
+router.post('/scheduler/worker', smsDispatchWorker);
 
 // ── Webhooks ──────────────────────────────────────────────────────────
 // These handle incoming POST requests from Twilio
